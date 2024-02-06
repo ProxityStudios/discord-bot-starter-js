@@ -1,10 +1,8 @@
-import { ChatInputCommandInteraction } from 'discord.js';
-import type { MyClient } from '../../client';
-import { Command, CommandContext } from '../../command';
-import { CommandCategory, CommandName } from '../../types';
+const { Command } = require('../../command');
+const { CommandName, CommandCategory } = require('../../constants');
 
-export default class extends Command {
-	public constructor(client: MyClient) {
+exports = class extends Command {
+	constructor(client) {
 		super(client, {
 			name: CommandName.Help,
 			description: 'Displays a list of available commands.',
@@ -12,10 +10,7 @@ export default class extends Command {
 		});
 	}
 
-	public async execute(
-		interaction: ChatInputCommandInteraction,
-		ctx: CommandContext
-	): Promise<void> {
+	async execute(interaction, ctx) {
 		const embed = ctx.messaging.infoEmbed(
 			'This is a list of commands you can use.'
 		);
@@ -38,4 +33,4 @@ export default class extends Command {
 
 		await interaction.reply({ embeds: [embed] });
 	}
-}
+};

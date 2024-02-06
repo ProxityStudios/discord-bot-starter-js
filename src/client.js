@@ -1,16 +1,17 @@
-import { Client, Events, GatewayIntentBits } from 'discord.js';
-import { ILogObj, Logger } from 'tslog';
-import { MessagingService } from './services/messaging';
-import { CommandsService } from './services/commands';
-import { Services } from './types';
-import { Service } from './services/service';
+const { Client, Events, GatewayIntentBits } = require('discord.js');
+const { Logger } = require('tslog');
+const { MessagingService } = require('./services/messaging');
+const { CommandsService } = require('./services/commands');
 
-export class MyClient extends Client {
-	public services: Services;
+/**
+ * @abstract
+ */
+exports.MyClient = class extends Client {
+	services;
 
-	public servicesArr: Service[];
+	servicesArr;
 
-	public logger: Logger<ILogObj>;
+	logger;
 
 	constructor() {
 		super({
@@ -35,9 +36,9 @@ export class MyClient extends Client {
 		this.on(Events.ClientReady, (c) => this.onClientReady(c));
 	}
 
-	public async init() {
+	async init() {
 		try {
-			const servicesPromises: Promise<true | Error>[] = [];
+			const servicesPromises = [];
 
 			this.servicesArr.forEach((s) => {
 				servicesPromises.push(s.init());
@@ -48,12 +49,15 @@ export class MyClient extends Client {
 			this.logger.info('All services initialized successfully');
 		} catch (error) {
 			// TODO: improve error handling
-			this.logger.error(`error: Error starting services: ${error as any}`);
+			this.logger.error(`error: Error starting services: ${error}`);
 			throw error;
 		}
 	}
 
-	private onClientReady(client: Client<true>) {
+	/**
+	 * @private
+	 */
+	onClientReady(client) {
 		this.logger.info(`${client.user.tag} is now ready to serve.`);
 	}
-}
+};

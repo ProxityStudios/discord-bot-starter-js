@@ -1,23 +1,15 @@
-import {
-	ChatInputApplicationCommandData,
-	Events,
-	GuildChannel,
-	Interaction,
-	REST,
-	Routes,
-	TextChannel,
-} from 'discord.js';
-import fs from 'fs/promises';
-import path from 'path';
-import { Command } from '../command';
-import { Service } from './service';
+const { Events, REST, Routes } = require('discord.js');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { Command } = require('../command');
+const { Service } = require('./service');
 
 export class CommandsService extends Service {
-	public commands: Command[] = [];
+	commands = [];
 
-	public cmdMap = new Map<string, Command>();
+	cmdMap = new Map();
 
-	public async init(): Promise<true | Error> {
+	async init() {
 		await this.readCommands(path.join(__dirname, '../commands'));
 		await this.registerCommands();
 
@@ -31,7 +23,10 @@ export class CommandsService extends Service {
 		return true;
 	}
 
-	private async readCommands(dir: string): Promise<void> {
+	/**
+	 * @private
+	 */
+	async readCommands(dir) {
 		const commandFiles = await fs.readdir(dir);
 
 		await Promise.all(
@@ -41,18 +36,16 @@ export class CommandsService extends Service {
 
 				if (stat.isDirectory()) {
 					await this.readCommands(filePath);
-				} else if (commandFile.endsWith('.ts')) {
-					const CommandModule: any = await import(filePath);
+				} else if (commandFile.endsWith('.js')) {
+					const CommandModule = await import(filePath);
 
 					if (
 						CommandModule.default &&
 						CommandModule.default.prototype instanceof Command
 					) {
 						// TODO: improve types
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, new-cap
-						const command: Command = new CommandModule.default(
-							this.client
-						);
+						// eslint-disable-next-line new-cap
+						const command = new CommandModule.default(this.client);
 						this.commands.push(command);
 						this.cmdMap.set(command.name.toLowerCase(), command);
 						this.client.logger.info(
@@ -71,21 +64,24 @@ export class CommandsService extends Service {
 		);
 	}
 
-	private async registerCommands() {
-		const rest = new REST().setToken(process.env.TOKEN!);
+	/**
+	 * @private
+	 */
+	async registerCommands() {
+		const rest = new REST().setToken(process.env.TOKEN);
 
 		try {
 			this.client.logger.info(
 				`Refreshing ${this.commands.length} application (/) commands.`
 			);
 
-			const data = (await rest.put(
+			const data = await rest.put(
 				Routes.applicationGuildCommands(
-					process.env.APPLICATION_ID!,
-					process.env.GUILD_ID!
+					process.env.APPLICATION_ID,
+					process.env.GUILD_ID
 				),
 				{ body: this.commands.map((command) => command.data.toJSON()) }
-			)) as ChatInputApplicationCommandData[];
+			);
 
 			this.client.logger.info(
 				`Reloaded ${data.length} application (/) commands.`
@@ -95,7 +91,12 @@ export class CommandsService extends Service {
 		}
 	}
 
-	private async onInteractionCreate(interaction: Interaction): Promise<void> {
+	/**
+	 *
+	 * @param {import('discord.js').Interaction} interaction
+	 * @returns
+	 */
+	async onInteractionCreate(interaction) {
 		// Check if the interaction is a chat input command
 		if (!interaction.isChatInputCommand()) {
 			return;
@@ -103,7 +104,7 @@ export class CommandsService extends Service {
 
 		// Get the channel and guild from the interaction
 		const { channel } = interaction;
-		const guild = (channel as GuildChannel)?.guild;
+		const guild = channel?.guild;
 
 		// Check if the command exists in the command map
 		const cmd = this.cmdMap.get(interaction.commandName.toLowerCase());
@@ -138,7 +139,7 @@ export class CommandsService extends Service {
 				messaging: this.client.services.messaging,
 				commands: this,
 				member,
-				channel: channel as TextChannel,
+				channel,
 				guild,
 				user: interaction.user,
 			});
